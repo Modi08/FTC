@@ -95,8 +95,8 @@ public class main extends LinearOpMode {
             rotate = gamepad1.right_stick_x;
 
             //Calculate Power to wheels
-            leftPower = forward + rotate;
-            rightPower = forward - rotate;
+            leftPower = (forward + rotate) * 0.9;
+            rightPower = (forward - rotate) * 0.9;
             max = Math.max(Math.abs(leftPower), Math.abs(rightPower));
             if (max > 1.0)
             {
