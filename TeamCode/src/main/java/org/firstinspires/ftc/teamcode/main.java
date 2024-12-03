@@ -25,8 +25,7 @@ public class main extends LinearOpMode {
     final double armClosedRobot = 0;
     final double armCollect = 250 * armTicksPerDegree;
     final double armClearBarrier = 230 * armTicksPerDegree;
-    final double armScoreSpec = 160 * armTicksPerDegree;
-    final double armScoreSampleLow = 160 * armTicksPerDegree;
+    final double armScoreSpecOrSample = 160 * armTicksPerDegree;
     final double armHangHook = 120 * armTicksPerDegree;
     final double armWinchRobot = 15 * armTicksPerDegree;
 
@@ -36,8 +35,8 @@ public class main extends LinearOpMode {
     final double intakeDeposit = 0.5;
 
     //Wrist position constants
-    final double wristFoldedIn = 0.8333;
-    final double wristFoldedOut = 0.5;
+    final double wristFoldedIn = 0.4;
+    final double wristFoldedOut = 0.065;
 
     //TODO Understand the following
     final double FudgeFactor = 15 * armTicksPerDegree;
@@ -56,9 +55,9 @@ public class main extends LinearOpMode {
         double max;
 
         //Initializing Motors
-        leftDrive = hardwareMap.get(DcMotor.class, "motor1");
-        rightDrive = hardwareMap.get(DcMotor.class, "motor2");
-        armMotor = hardwareMap.get(DcMotor.class, "motor3");
+        leftDrive = hardwareMap.get(DcMotor.class, "motorLeft");
+        rightDrive = hardwareMap.get(DcMotor.class, "motorRight");
+        armMotor = hardwareMap.get(DcMotor.class, "motorArm");
 
         //Configuring DriveTrain
         leftDrive.setDirection(DcMotor.Direction.FORWARD);
@@ -118,41 +117,45 @@ public class main extends LinearOpMode {
                 intake.setPower(intakeDeposit);
             }
 
+            if (gamepad1.y) {
+                if (wrist.getPosition() == wristFoldedIn) {
+                    wrist.setPosition(wristFoldedOut);
+                } else {
+                    wrist.setPosition(wristFoldedIn);
+                }
+            }
+
+
 
             //Toggling Arm Position
-            if(gamepad1.right_bumper){
+            if(gamepad2.right_bumper){
                 armPosition = armCollect;
                 wrist.setPosition(wristFoldedOut);
                 intake.setPower(intakeCollect);
             }
 
-            else if (gamepad1.left_bumper){
+            else if (gamepad2.left_bumper){
                 armPosition = armClearBarrier;
             }
 
-            else if (gamepad1.y){
-                /* This is the correct height to score the sample in the LOW BASKET */
-                armPosition = armScoreSampleLow;
-            }
-
-            else if (gamepad1.dpad_left) {
+            else if (gamepad2.dpad_left) {
                 armPosition = armClosedRobot;
                 intake.setPower(intakeOff);
                 wrist.setPosition(wristFoldedIn);
             }
 
-            else if (gamepad1.dpad_right){
-                armPosition = armScoreSpec;
+            else if (gamepad2.dpad_right){
+                armPosition = armScoreSpecOrSample;
                 wrist.setPosition(wristFoldedOut);
             }
 
-            else if (gamepad1.dpad_up){
+            else if (gamepad2.dpad_up){
                 armPosition = armHangHook;
                 intake.setPower(intakeOff);
                 wrist.setPosition(wristFoldedIn);
             }
 
-            else if (gamepad1.dpad_down){
+            else if (gamepad2.dpad_down){
                 armPosition = armWinchRobot;
                 intake.setPower(intakeOff);
                 wrist.setPosition(wristFoldedIn);
