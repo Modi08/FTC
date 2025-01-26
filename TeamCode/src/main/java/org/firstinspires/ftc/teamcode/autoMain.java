@@ -7,19 +7,24 @@ import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.Servo;
-import com.qualcomm.robotcore.hardware.HardwareMap;
 
+import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit;
+import org.openftc.easyopencv.OpenCvCameraFactory;
+import org.openftc.easyopencv.OpenCvCamera;
+import org.openftc.easyopencv.OpenCvCameraRotation;
+import org.openftc.easyopencv.OpenCvWebcam;
+
 
 @Autonomous(name = "automain")
 public class autoMain extends LinearOpMode{
 
-    public HuskyLens lens;
-    public DcMotor leftDrive;
-    public DcMotor rightDrive;
-    public DcMotor armMotor;
-    public CRServo intake;
-    public Servo wrist;
+    private OpenCvWebcam leftCamera;
+    private OpenCvWebcam rightCamera;
+    private DcMotor leftDrive;
+    private DcMotor rightDrive;
+    private DcMotor armMotor;
+    private CRServo intake;
 
     final double armTicksPerDegree = 28 * 250047.0 / 4913.0 * 100.0 / 20.0 * 1/360.0;
 
@@ -43,30 +48,21 @@ public class autoMain extends LinearOpMode{
     final double intakeDeposit = 0.5;
 
     //Wrist position constants
-    final double wristFoldedIn = 0.8333;
-    final double wristFoldedOut = 0.5;
+    final double wristFoldedIn = 0.4;
+    final double wristFoldedOut = 0.065;
 
     final double secondsPerCentimeter = 4;
 
-    //Arm Movements
-    double armPosition = (int)armClosedRobot;
-    double armPositionFudgeFactor;
 
     @Override
     public void runOpMode() throws InterruptedException{
-        double leftPower;
-        double rightPower;
         HuskyLens.Block[] blocks;
         boolean isPieceFound = false;
 
-        //Initializing HuskyLens
-        lens = hardwareMap.get(HuskyLens.class, "lens");
-        lens.selectAlgorithm(HuskyLens.Algorithm.OBJECT_RECOGNITION);
-
         //Initializing Motors
-        leftDrive = hardwareMap.get(DcMotor.class, "motor1");
-        rightDrive = hardwareMap.get(DcMotor.class, "motor2");
-        armMotor = hardwareMap.get(DcMotor.class, "motor3");
+        leftDrive = hardwareMap.get(DcMotor.class, "motorLeft");
+        rightDrive = hardwareMap.get(DcMotor.class, "motorRight");
+        armMotor = hardwareMap.get(DcMotor.class, "motorArm");
 
         //Configuring DriveTrain
         leftDrive.setDirection(DcMotor.Direction.FORWARD);
@@ -86,11 +82,16 @@ public class autoMain extends LinearOpMode{
 
         //Initializing Servos
         intake = hardwareMap.get(CRServo.class, "Servo1");
-        wrist = hardwareMap.get(Servo.class, "wrist");
+        Servo wrist = hardwareMap.get(Servo.class, "wrist");
 
         //Configuring Servos
         intake.setPower(intakeOff);
         wrist.setPosition(wristFoldedIn);
+
+        //Initializing Camera
+        int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
+        leftCamera = OpenCvCameraFactory.getInstance().createWebcam(hardwareMap.get(WebcamName.class, "Webcam"), cameraMonitorViewId);
+        rightCamera = OpenCvCameraFactory.getInstance().createWebcam(hardwareMap.get(WebcamName.class, "Webcam"), cameraMonitorViewId);
 
         telemetry.addLine("Robot Ready.");
         telemetry.update();
@@ -99,82 +100,28 @@ public class autoMain extends LinearOpMode{
 
 
         while (opModeIsActive()) {
+            leftCamera.setPipeline(new objectRecognition());
+            leftCamera.setMillisecondsPermissionTimeout(30);
 
-            leftDrive.setTargetPosition(0);
-            leftDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-            leftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            rightCamera.setPipeline(new objectRecognition());
+            rightCamera.setMillisecondsPermissionTimeout(30);
 
-            rightDrive.setTargetPosition(0);
-            rightDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-            rightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-
-
-
-            while (!isPieceFound) {
-                blocks = lens.blocks();
-                if (blocks.length > 0) {
-                    leftDrive.setPower(0);
-                    rightDrive.setPower(0);
-                    isPieceFound = true;
+            leftCamera.openCameraDeviceAsync(new OpenCvCamera.AsyncCameraOpenListener() {
+                @Override
+                public void onOpened() {
+                    leftCamera.startStreaming(320, 240, OpenCvCameraRotation.UPRIGHT);
                 }
-                else {
-                    leftDrive.setTargetPosition((int) driveVector10);
-                    rightDrive.setTargetPosition((int) driveVector10);
+
+                @Override
+                public void onError(int errorCode) {
+
                 }
-            }
-
-            moveToTargetLocation(true);
-
-            armMotor.setTargetPosition((int) (armCollect));
-            intake.setPower(intakeCollect);
-            wrist.setPosition(wristFoldedOut);
-
-            Thread.sleep(5000);
-
-            intake.setPower(intakeOff);
-
-            lens.selectAlgorithm(HuskyLens.Algorithm.TAG_RECOGNITION);
-            moveToTargetLocation(false);
-
-            leftDrive.setTargetPosition((int) driveVector90);
-            rightDrive.setTargetPosition((int) driveVector90);
-
-            armMotor.setTargetPosition((int) (armScoreSampleLow));
-            wrist.setPosition(wristFoldedOut);
-            Thread.sleep(5000);
-            intake.setPower(intakeDeposit);
-
-            ((DcMotorEx) armMotor).setVelocity(2100);
-            armMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-
-            if (((DcMotorEx) armMotor).isOverCurrent()){
-                telemetry.addLine("MOTOR EXCEEDED CURRENT LIMIT!");
-            }
-
-            telemetry.addData("armTarget: ", armMotor.getTargetPosition());
-            telemetry.addData("arm Encoder: ", armMotor.getCurrentPosition());
-            telemetry.update();
+            });
         }
     }
 
 
-    public void moveToTargetLocation(boolean isObjectSample) {
-        int targetWidth = isObjectSample ? 80 : 90;
-        int targetHeight = isObjectSample ? 80 : 90;
+    private void moveToTargetLocation(boolean isObjectSample) {
 
-        HuskyLens.Block block = lens.blocks()[0];
-        boolean heightCheck = (block.height > (targetHeight - (targetHeight * 0.1))) && (block.height < (targetHeight + (targetHeight * 0.1)));
-        boolean widthCheck = (block.width > (targetWidth - (targetWidth * 0.1))) && (block.width < (targetWidth + (targetWidth * 0.1)));
-
-        while (!(widthCheck || heightCheck)) {
-            block = lens.blocks()[0];
-            heightCheck = (block.height > (targetHeight - (targetHeight * 0.1))) && (block.height < (targetHeight + (targetHeight * 0.1)));
-            widthCheck = (block.width > (targetWidth - (targetWidth * 0.1))) && (block.width < (targetWidth + (targetWidth * 0.1)));
-
-            leftDrive.setPower(1);
-            rightDrive.setPower(1);
-        }
-        leftDrive.setPower(0);
-        rightDrive.setPower(0);
     }
 }
