@@ -13,18 +13,21 @@ import java.util.List;
 
 public class objectRecognition extends OpenCvPipeline {
 
-    Net yolo8 = Dnn.readNetFromTorch("best.pt");
+    public Net yolo8 = Dnn.readNetFromTorch("best.pt");
+    private Mat frame;
 
     @Override
     public Mat processFrame(Mat input) {
         yolo8.setInput(input);
+        frame = input;
         return yolo8.forward();
     }
 
-    public List<Integer> getObjectHeights(Mat input) {
+    public List<Integer> getObjectHeights() {
+
         List<Integer> heights = new ArrayList<>();
         MatOfFloat data = new MatOfFloat();
-        yolo8.setInput(input);
+        yolo8.setInput(frame);
         yolo8.forward((List<Mat>) data, yolo8.getUnconnectedOutLayersNames());
 
         List<Mat> outputs = new ArrayList<>();
@@ -40,12 +43,12 @@ public class objectRecognition extends OpenCvPipeline {
             float[] detection = data.get(nmsIndex, 0);
             float confidence = detection[4];
 
-            if (confidence > 0.5f) {
+            if (confidence > 0.75f) {
                 int classId = (int) detection[5];
-                int x = (int) (detection[0] * input.cols());
-                int y = (int) (detection[1] * input.rows());
-                int width = (int) (detection[2] * input.cols()) - x;
-                int height = (int) (detection[3] * input.rows()) - y;
+                int x = (int) (detection[0] * frame.cols());
+                int y = (int) (detection[1] * frame.rows());
+                int width = (int) (detection[2] * frame.cols()) - x;
+                int height = (int) (detection[3] * frame.rows()) - y;
 
                 classIds.add(classId);
                 confidences.add(confidence);
