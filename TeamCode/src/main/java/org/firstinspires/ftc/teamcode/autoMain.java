@@ -142,11 +142,11 @@ public class autoMain extends LinearOpMode{
         }
     }
 
-    private void aimHeaderOfRobot(objectRecognition xPipelines, OpenCvPipeline yPipelines) {
+    private void aimHeaderOfRobot(objectRecognition xPipelines, objectRecognition yPipelines) {
 
         Orientation target = imu.getRobotOrientation(AxesReference.INTRINSIC, AxesOrder.XYZ, AngleUnit.DEGREES);
-        double xDistance = (4 * 38 * 480)/(xPipelines.getObjectHeights()[0] * 2.02);
-        double yDistance = (4 * 38 * 480)/(yHeight * 2.02);
+        double xDistance = (4 * 38 * 480)/(xPipelines.getObjectHeights().get(0) * 2.02);
+        double yDistance = (4 * 38 * 480)/(yPipelines.getObjectHeights().get(0) * 2.02);
 
 
     }

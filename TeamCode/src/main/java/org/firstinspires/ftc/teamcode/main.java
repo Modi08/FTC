@@ -27,28 +27,28 @@ public class main extends LinearOpMode {
     final double armTicksPerDegree = 28 * 250047.0 / 4913.0 * 100.0 / 20.0 * 1/360.0;
 
     //Arm position Constants
-    final double armClosedRobot = 0;
-    final double armHangHook = 120 * armTicksPerDegree;
-    final double armWinchRobot = 15 * armTicksPerDegree;
+    final double armClearScore = 120 * armTicksPerDegree;
+    final double armHangHook = 90 * armTicksPerDegree;
+    final double armWinchRobot = 0;
 
     //Different motor speeds
     final double intakeCollect = -1.0;
     final double intakeOff = 0.0;
-    final double intakeDeposit = 0.5;
+    final double intakeDeposit = 1;
 
     //Wrist position constants
-    final double wristFoldedIn = 0.4;
-    final double wristFoldedOut = 0.065;
+    final double wristFoldedIn = 0;
+    final double wristFoldedOut = 0.15;
 
     //Basket position constants
     final double basketStore = 0;
-    final double basketScore = 0.5;
+    final double basketScore = 0.4;
 
     //TODO Understand the following
     final double FudgeFactor = 15 * armTicksPerDegree;
 
     //Arm Movements
-    double armPosition = (int)armClosedRobot;
+    double armPosition = (int)armWinchRobot;
     double armPositionFudgeFactor;
 
     @Override
@@ -69,6 +69,8 @@ public class main extends LinearOpMode {
         rightSlider.setDirection(DcMotor.Direction.FORWARD);
         topSlider.setDirection(DcMotor.Direction.FORWARD);
 
+        armMotor.setDirection(DcMotor.Direction.REVERSE);
+
 
         leftDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -86,13 +88,16 @@ public class main extends LinearOpMode {
         armMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
 
         //Initializing Servos
-        intake = hardwareMap.get(CRServo.class, "Servo1");
+        intake = hardwareMap.get(CRServo.class, "intake");
         wrist = hardwareMap.get(Servo.class, "wrist");
         basket = hardwareMap.get(Servo.class, "basket");
 
         //Configuring Servos
+        wrist.setDirection(Servo.Direction.REVERSE);
         intake.setPower(intakeOff);
         wrist.setPosition(wristFoldedIn);
+        basket.setPosition(basketStore);
+
 
         telemetry.addLine("Robot Ready.");
         telemetry.update();
@@ -106,23 +111,31 @@ public class main extends LinearOpMode {
 
             controlVerticalSlider();
             //Retract top slider
-            if (gamepad2.b) {
+            if (gamepad1.b) {
                 retractVerticalSlider();
             }
             //Collect Sample
-            if (gamepad1.a) {
+            else if (gamepad1.a) {
                 collectSample();
+            } else if (gamepad1.x) {
+                basket.setPosition(basketScore);
+
+            } else if (gamepad1.y) {
+
+                basket.setPosition(basketStore);
             }
 
             //Toggling Arm Position
-            if (gamepad2.dpad_up){
+            if (gamepad1.dpad_up){
                 armPosition = armHangHook;
                 intake.setPower(intakeOff);
                 wrist.setPosition(wristFoldedIn);
-            } else if (gamepad2.dpad_down){
+            } else if (gamepad1.dpad_down){
                 armPosition = armWinchRobot;
                 intake.setPower(intakeOff);
                 wrist.setPosition(wristFoldedIn);
+            } else if (gamepad1.dpad_left) {
+                armPosition = armClearScore;
             }
 
             //Safety Precautions
@@ -130,6 +143,7 @@ public class main extends LinearOpMode {
 
             ((DcMotorEx) armMotor).setVelocity(2100);
             armMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+
 
             /* Check to see if our arm is over the current limit, and report via telemetry. */
             if (((DcMotorEx) armMotor).isOverCurrent()){
@@ -140,6 +154,7 @@ public class main extends LinearOpMode {
             /* send telemetry to the driver of the arm's current position and target position */
             telemetry.addData("armTarget: ", armMotor.getTargetPosition());
             telemetry.addData("arm Encoder: ", armMotor.getCurrentPosition());
+            telemetry.addData("SliderSpeed: ", topSlider.getPower());
             telemetry.update();
 
         }
@@ -148,22 +163,30 @@ public class main extends LinearOpMode {
     private void collectSample() {
         boolean run = true;
         while (run) {
+            wrist.setDirection(Servo.Direction.FORWARD);
             wrist.setPosition(wristFoldedOut);
             intake.setPower(intakeCollect);
-            if (gamepad1.a) {
+            if (gamepad1.dpad_right) {
                 run = false;
                 intake.setPower(intakeOff);
+                wrist.setDirection(Servo.Direction.REVERSE);
                 wrist.setPosition(wristFoldedIn);
-            }   
+            }  }
+
+        try {
+            leftSlider.setPower(0.5);
+
+            rightSlider.setPower(0.5);
+            Thread.sleep((long) (1500));
+            leftSlider.setPower(0);
+            rightSlider.setPower(0);
+            intake.setPower(intakeDeposit);
+            Thread.sleep((long) (1500));
+            intake.setPower(intakeOff);
+        } catch (InterruptedException e) {
+            telemetry.addLine("FAIL");
         }
 
-        leftSlider.setDirection(DcMotorSimple.Direction.REVERSE);
-        rightSlider.setDirection(DcMotorSimple.Direction.REVERSE);
-        while (!((DcMotorEx) leftSlider).isOverCurrent() || !((DcMotorEx) rightSlider).isOverCurrent()) {
-            leftSlider.setPower(1);
-            rightSlider.setPower(1);
-        }
-        
     }
 
     private void controlDriveMotors() {
@@ -186,24 +209,35 @@ public class main extends LinearOpMode {
     }
 
     private void controlHorizontalSliders() {
-        while (gamepad2.left_trigger > 0) {
-            double power = gamepad2.left_trigger;
-            leftSlider.setPower(power);
-            rightSlider.setPower(power);
+        telemetry.addData("left trigger", gamepad1.left_trigger);
+        while (gamepad1.left_trigger > 0) {
+            leftSlider.setPower(-0.7);
+            rightSlider.setPower(-0.7);
         }
+        leftSlider.setPower(0);
+        rightSlider.setPower(0);
     }
 
     private void controlVerticalSlider() {
-        while (gamepad2.right_trigger > 0) {
-            double power = gamepad2.left_trigger;
-            leftSlider.setPower(power);
-            rightSlider.setPower(power);
+        boolean up = false;
+        telemetry.addData("right trigger", gamepad1.right_trigger);
+        while (gamepad1.right_trigger > 0) {
+            topSlider.setPower(0.5);
+            up = true;
+        }
+        if (up) {
+            topSlider.setPower(0.2);
+
         }
     }
 
     private void retractVerticalSlider() {
-        while (!((DcMotorEx) topSlider).isOverCurrent()) {
-            topSlider.setPower(1);
+        try {
+            topSlider.setPower(-0.5);
+            Thread.sleep((long) (2200));
+            topSlider.setPower(0);
+        }catch (InterruptedException e) {
+            telemetry.addLine("FAIL");
         }
     }
 }
