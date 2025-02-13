@@ -5,8 +5,10 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
+
+import android.os.SystemClock;
+
 
 import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit;
 
@@ -44,8 +46,11 @@ public class main extends LinearOpMode {
     final double basketStore = 0;
     final double basketScore = 0.4;
 
-    //TODO Understand the following
-    final double FudgeFactor = 15 * armTicksPerDegree;
+    //Time constants
+    final long timeLimitVerticalSliders = 750;
+    long secondPast = 0;
+    long startTime = 0L;
+    long endTime = 0L;
 
     //Arm Movements
     double armPosition = (int)armWinchRobot;
@@ -174,10 +179,10 @@ public class main extends LinearOpMode {
             }  }
 
         try {
-            leftSlider.setPower(0.5);
+            leftSlider.setPower(1);
 
-            rightSlider.setPower(0.5);
-            Thread.sleep((long) (1500));
+            rightSlider.setPower(1);
+            Thread.sleep((long) (timeLimitVerticalSliders));
             leftSlider.setPower(0);
             rightSlider.setPower(0);
             intake.setPower(intakeDeposit);
@@ -209,25 +214,35 @@ public class main extends LinearOpMode {
     }
 
     private void controlHorizontalSliders() {
+        boolean isInverted = false;
         telemetry.addData("left trigger", gamepad1.left_trigger);
-        while (gamepad1.left_trigger > 0) {
-            leftSlider.setPower(-0.7);
-            rightSlider.setPower(-0.7);
+        telemetry.addData("right trigger", gamepad1.right_trigger);
+        while (gamepad1.left_trigger > 0 || gamepad1.right_trigger > 0 || secondPast >= timeLimitVerticalSliders) {
+            startTimer();
+            if (gamepad1.left_trigger > 0) {
+                leftSlider.setPower(-1);
+                rightSlider.setPower(-1);
+            } else {
+                leftSlider.setPower(1);
+                rightSlider.setPower(1);
+                isInverted = true;
+            }
         }
+        endTimer(isInverted);
         leftSlider.setPower(0);
         rightSlider.setPower(0);
     }
 
     private void controlVerticalSlider() {
-        boolean up = false;
-        telemetry.addData("right trigger", gamepad1.right_trigger);
-        while (gamepad1.right_trigger > 0) {
-            topSlider.setPower(0.5);
-            up = true;
-        }
-        if (up) {
-            topSlider.setPower(0.2);
-
+        telemetry.addData("right bumper", gamepad1.right_bumper);
+        if (gamepad1.right_bumper) {
+            try {
+                topSlider.setPower(1);
+                Thread.sleep((long) (1100));
+                topSlider.setPower(0.2);
+            } catch (InterruptedException e) {
+                telemetry.addLine("FAIL");
+            }
         }
     }
 
@@ -236,8 +251,21 @@ public class main extends LinearOpMode {
             topSlider.setPower(-0.5);
             Thread.sleep((long) (2200));
             topSlider.setPower(0);
-        }catch (InterruptedException e) {
+        } catch (InterruptedException e) {
             telemetry.addLine("FAIL");
+        }
+    }
+
+    private void startTimer() {
+        startTime = SystemClock.uptimeMillis();
+    }
+
+    private void endTimer(boolean isInverted) {
+        endTime = SystemClock.uptimeMillis();
+        if (isInverted) {
+            secondPast += endTime - startTime;
+        } else {
+            secondPast -= endTime - startTime;
         }
     }
 }
