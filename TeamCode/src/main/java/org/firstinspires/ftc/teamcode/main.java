@@ -7,8 +7,6 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.Servo;
 
-import android.os.SystemClock;
-
 
 import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit;
 
@@ -29,9 +27,8 @@ public class main extends LinearOpMode {
     final double armTicksPerDegree = 28 * 250047.0 / 4913.0 * 100.0 / 20.0 * 1/360.0;
 
     //Arm position Constants
-    final double armClearScore = 120 * armTicksPerDegree;
-    final double armHangHook = 90 * armTicksPerDegree;
-    final double armWinchRobot = 0;
+    final double armClearScore = 200 * armTicksPerDegree;
+    final double armWinchRobot = 10 * armTicksPerDegree;
 
     //Different motor speeds
     final double intakeCollect = -1.0;
@@ -39,22 +36,20 @@ public class main extends LinearOpMode {
     final double intakeDeposit = 1;
 
     //Wrist position constants
-    final double wristFoldedIn = 0;
-    final double wristFoldedOut = 0.15;
+    final double wristFoldedIn = 1;
+    final double wristFoldedOut = 0.25;
 
     //Basket position constants
-    final double basketStore = 0;
-    final double basketScore = 0.4;
+    final double basketStore = 0.2;
+    final double basketScore = 0.55;
 
     //Time constants
-    final long timeLimitVerticalSliders = 750;
-    long secondPast = 0;
-    long startTime = 0L;
-    long endTime = 0L;
-
+    final long timeLimitHorizontalSliders = 750;
+    final long timeExtendVerticalSliders =  1500;
     //Arm Movements
-    double armPosition = (int)armWinchRobot;
+    double armPosition = 0;
     double armPositionFudgeFactor;
+    double FUDGE_FACTOR = 100;
 
     @Override
     public void runOpMode() throws InterruptedException {
@@ -87,6 +82,8 @@ public class main extends LinearOpMode {
         ((DcMotorEx) rightSlider).setCurrentAlert(5, CurrentUnit.AMPS);
         ((DcMotorEx) topSlider).setCurrentAlert(5, CurrentUnit.AMPS);
 
+        //Configuring
+
         //Configuring Arm
         armMotor.setTargetPosition(0);
         armMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
@@ -98,11 +95,9 @@ public class main extends LinearOpMode {
         basket = hardwareMap.get(Servo.class, "basket");
 
         //Configuring Servos
-        wrist.setDirection(Servo.Direction.REVERSE);
         intake.setPower(intakeOff);
-        wrist.setPosition(wristFoldedIn);
         basket.setPosition(basketStore);
-
+        wrist.setPosition(wristFoldedIn);
 
         telemetry.addLine("Robot Ready.");
         telemetry.update();
@@ -110,39 +105,40 @@ public class main extends LinearOpMode {
         waitForStart();
 
         while (opModeIsActive()) {
+
             controlDriveMotors();
 
             controlHorizontalSliders();
 
-            controlVerticalSlider();
-            //Retract top slider
-            if (gamepad1.b) {
-                retractVerticalSlider();
-            }
+            extendVerticalSlider();
+
+            retractVerticalSlider();
+
             //Collect Sample
-            else if (gamepad1.a) {
+            if (gamepad1.right_bumper) {
                 collectSample();
+                // Toggle basket position
             } else if (gamepad1.x) {
                 basket.setPosition(basketScore);
-
             } else if (gamepad1.y) {
-
                 basket.setPosition(basketStore);
+            } else if (gamepad1.a) {
+                intake.setPower(intakeDeposit);
             }
 
             //Toggling Arm Position
-            if (gamepad1.dpad_up){
-                armPosition = armHangHook;
-                intake.setPower(intakeOff);
-                wrist.setPosition(wristFoldedIn);
-            } else if (gamepad1.dpad_down){
+
+            if (gamepad1.dpad_left){
                 armPosition = armWinchRobot;
                 intake.setPower(intakeOff);
                 wrist.setPosition(wristFoldedIn);
-            } else if (gamepad1.dpad_left) {
+
+            } else if (gamepad1.dpad_right) {
                 armPosition = armClearScore;
             }
 
+
+            armPositionFudgeFactor = FUDGE_FACTOR * (gamepad2.right_trigger + (-gamepad2.left_trigger));
             //Safety Precautions
             armMotor.setTargetPosition((int) (armPosition + armPositionFudgeFactor));
 
@@ -159,7 +155,6 @@ public class main extends LinearOpMode {
             /* send telemetry to the driver of the arm's current position and target position */
             telemetry.addData("armTarget: ", armMotor.getTargetPosition());
             telemetry.addData("arm Encoder: ", armMotor.getCurrentPosition());
-            telemetry.addData("SliderSpeed: ", topSlider.getPower());
             telemetry.update();
 
         }
@@ -168,40 +163,40 @@ public class main extends LinearOpMode {
     private void collectSample() {
         boolean run = true;
         while (run) {
-            wrist.setDirection(Servo.Direction.FORWARD);
             wrist.setPosition(wristFoldedOut);
             intake.setPower(intakeCollect);
-            if (gamepad1.dpad_right) {
+            controlDriveMotors();
+            controlHorizontalSliders();
+            if (gamepad1.a) {
+                intake.setPower(intakeDeposit);
+            }else if (gamepad1.left_bumper) {
                 run = false;
+                stopDriveMotors();
                 intake.setPower(intakeOff);
-                wrist.setDirection(Servo.Direction.REVERSE);
+                wrist.setDirection(Servo.Direction.FORWARD);
                 wrist.setPosition(wristFoldedIn);
             }  }
 
-        try {
-            leftSlider.setPower(1);
+        leftSlider.setPower(1);
+        rightSlider.setPower(1);
+        waitFor(timeLimitHorizontalSliders);
+        leftSlider.setPower(0);
+        rightSlider.setPower(0);
+        intake.setPower(intakeDeposit);
+        waitFor(1500);
+        intake.setPower(intakeOff);
 
-            rightSlider.setPower(1);
-            Thread.sleep((long) (timeLimitVerticalSliders));
-            leftSlider.setPower(0);
-            rightSlider.setPower(0);
-            intake.setPower(intakeDeposit);
-            Thread.sleep((long) (1500));
-            intake.setPower(intakeOff);
-        } catch (InterruptedException e) {
-            telemetry.addLine("FAIL");
-        }
 
     }
 
     private void controlDriveMotors() {
         //Getting joystick inputs
-        double forward = -gamepad1.left_stick_y;
-        double rotate = gamepad1.right_stick_x;
+        double forward = -gamepad2.left_stick_y;
+        double rotate = -gamepad2.right_stick_x;
 
         //Calculate Power to wheels
         double leftPower = (forward + rotate) * 0.9;
-        double rightPower = (forward - rotate) * 0.9;
+        double rightPower = (forward - rotate) * 0.45;
         double max = Math.max(Math.abs(leftPower), Math.abs(rightPower));
         if (max > 1.0)
         {
@@ -214,58 +209,53 @@ public class main extends LinearOpMode {
     }
 
     private void controlHorizontalSliders() {
-        boolean isInverted = false;
-        telemetry.addData("left trigger", gamepad1.left_trigger);
-        telemetry.addData("right trigger", gamepad1.right_trigger);
-        while (gamepad1.left_trigger > 0 || gamepad1.right_trigger > 0 || secondPast >= timeLimitVerticalSliders) {
-            startTimer();
-            if (gamepad1.left_trigger > 0) {
+        //telemetry.addData("left trigger", gamepad1.left_trigger);
+        //telemetry.addData("right trigger", gamepad1.right_trigger);
+        //telemetry.addData("encoder", rightSlider.getCurrentPosition());
+        //telemetry.addData("is position passed", rightSlider.getCurrentPosition() < 1660);
+        while (((gamepad1.left_trigger > 0) && (rightSlider.getCurrentPosition() > 0)) || ((gamepad1.right_trigger > 0) && (rightSlider.getCurrentPosition() < 1550))) {
+            if (gamepad1.right_trigger > 0) {
                 leftSlider.setPower(-1);
                 rightSlider.setPower(-1);
             } else {
                 leftSlider.setPower(1);
                 rightSlider.setPower(1);
-                isInverted = true;
             }
         }
-        endTimer(isInverted);
+
         leftSlider.setPower(0);
         rightSlider.setPower(0);
     }
 
-    private void controlVerticalSlider() {
+    private void extendVerticalSlider() {
         telemetry.addData("right bumper", gamepad1.right_bumper);
-        if (gamepad1.right_bumper) {
-            try {
-                topSlider.setPower(1);
-                Thread.sleep((long) (1100));
-                topSlider.setPower(0.2);
-            } catch (InterruptedException e) {
-                telemetry.addLine("FAIL");
-            }
+        if (gamepad1.dpad_up) {
+            stopDriveMotors();
+            topSlider.setPower(1);
+            waitFor(timeExtendVerticalSliders);
+            topSlider.setPower(0.2);
         }
     }
 
     private void retractVerticalSlider() {
-        try {
-            topSlider.setPower(-0.5);
-            Thread.sleep((long) (2200));
+        if (gamepad1.dpad_down) {
+            stopDriveMotors();
+            topSlider.setPower(-1);
+            waitFor(timeExtendVerticalSliders);
             topSlider.setPower(0);
+        }
+    }
+
+    private void waitFor(long time) {
+        try {
+            Thread.sleep(time);
         } catch (InterruptedException e) {
             telemetry.addLine("FAIL");
         }
     }
 
-    private void startTimer() {
-        startTime = SystemClock.uptimeMillis();
-    }
-
-    private void endTimer(boolean isInverted) {
-        endTime = SystemClock.uptimeMillis();
-        if (isInverted) {
-            secondPast += endTime - startTime;
-        } else {
-            secondPast -= endTime - startTime;
-        }
+    private void stopDriveMotors() {
+        leftDrive.setPower(0);
+        rightDrive.setPower(0);
     }
 }

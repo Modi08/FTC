@@ -24,8 +24,8 @@ import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
 
 
 
-@Autonomous(name = "autoMain")
-public class autoMain extends LinearOpMode{
+@Autonomous(name = "autoBasicFar")
+public class autoBasicFar extends LinearOpMode{
 
     IntegratingGyroscope gyro;
     NavxMicroNavigationSensor navxMicro;
@@ -45,7 +45,7 @@ public class autoMain extends LinearOpMode{
     final double motorTicksPerDegree = 28 * (3591.0 / 187.0) * 1/360.0;
 
     //Arm position Constants
-    final double armClearScore = 180 * armTicksPerDegree;
+    final double armClearScore = 200 * armTicksPerDegree;
     final double armWinchRobot = 20 * armTicksPerDegree;
 
     //Motor Constants
@@ -61,12 +61,12 @@ public class autoMain extends LinearOpMode{
     final double wristFoldedOut = 0.25;
 
     //Basket position constants
-    final double basketStore = 0.05;
+    final double basketStore = 0.1;
     final double basketScore = 0.55;
 
     //Time constants
     final long timeLimitHorizontalSliders = 750;
-    final long timeExtendVerticalSliders = 1500;
+    final long timeExtendVerticalSliders = 1400;
     //Arm Movements
     double armPosition = 0;
 
@@ -151,21 +151,10 @@ public class autoMain extends LinearOpMode{
 
         while (opModeIsActive()) {
             telemetry.addLine("started again");
-            scoreSampleFromClose();
-
-            moveBySetDistance(350,false);
-            turnRobot(90, true);
-            moveBySetDistance(61, false);
-            turnRobot(90, false);
-            collectSample();
-            turnRobot(90, true);
-            moveBySetDistance(61, true);
-            turnRobot(90, false);
-            moveBySetDistance(350, false);
-            scoreSampleFromClose();
-            waitFor(30000);
-            waitFor(5000);
+            moveBySetDistance(205, true);
+            scoreSample();
             moveBySetDistance(400, false);
+            waitFor(30000);
             telemetry.update();
         }
     }
@@ -188,27 +177,17 @@ public class autoMain extends LinearOpMode{
             telemetry.addData("targetingPosition", leftDrive.getTargetPosition());
             telemetry.addData("currentPosition", leftDrive.getCurrentPosition());
             if (isReverse) {
-                leftDrive.setPower(0.75);
-                rightDrive.setPower(0.75);
+                leftDrive.setPower(1);
+                rightDrive.setPower(1);
             } else {
-                leftDrive.setPower(-0.75);
-                rightDrive.setPower(-0.75);
+                leftDrive.setPower(-1);
+                rightDrive.setPower(-1);
             }
             telemetry.update();
         }
         stopDriveMotors();
         leftDrive.setTargetPosition(0);
         leftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-    }
-
-    private void scoreSampleFromClose() {
-        turnRobot(45, true);
-        moveBySetDistance(45, true);
-        turnRobot(90, false);
-        scoreSample();
-        turnRobot(90, true);
-        moveBySetDistance(45, false);
-        turnRobot(45, false);
     }
 
     private void collectSample() {
@@ -326,4 +305,3 @@ public class autoMain extends LinearOpMode{
         }
     }
 }
-

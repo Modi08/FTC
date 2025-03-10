@@ -24,8 +24,8 @@ import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
 
 
 
-@Autonomous(name = "autoMain")
-public class autoMain extends LinearOpMode{
+@Autonomous(name = "autoBasicClose")
+public class autoBasicClose extends LinearOpMode{
 
     IntegratingGyroscope gyro;
     NavxMicroNavigationSensor navxMicro;
@@ -151,21 +151,16 @@ public class autoMain extends LinearOpMode{
 
         while (opModeIsActive()) {
             telemetry.addLine("started again");
-            scoreSampleFromClose();
-
-            moveBySetDistance(350,false);
-            turnRobot(90, true);
-            moveBySetDistance(61, false);
+            turnRobot(45, true);
+            moveBySetDistance(45, true);
             turnRobot(90, false);
-            collectSample();
+            scoreSample();
             turnRobot(90, true);
-            moveBySetDistance(61, true);
-            turnRobot(90, false);
-            moveBySetDistance(350, false);
-            scoreSampleFromClose();
-            waitFor(30000);
+            moveBySetDistance(45, false);
+            turnRobot(45, false);
             waitFor(5000);
             moveBySetDistance(400, false);
+            waitFor(30000);
             telemetry.update();
         }
     }
@@ -199,16 +194,6 @@ public class autoMain extends LinearOpMode{
         stopDriveMotors();
         leftDrive.setTargetPosition(0);
         leftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-    }
-
-    private void scoreSampleFromClose() {
-        turnRobot(45, true);
-        moveBySetDistance(45, true);
-        turnRobot(90, false);
-        scoreSample();
-        turnRobot(90, true);
-        moveBySetDistance(45, false);
-        turnRobot(45, false);
     }
 
     private void collectSample() {
@@ -326,4 +311,3 @@ public class autoMain extends LinearOpMode{
         }
     }
 }
-
